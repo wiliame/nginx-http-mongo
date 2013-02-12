@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <stdio.h>
 
+#include "mongo-c-driver/src/bson.h"
 #include "mongo-c-driver/src/mongo.h"
 
 /**
@@ -23,7 +24,7 @@ static void nginx_http_mongo_exit_worker(ngx_cycle_t* cycle);
 /**
  * Variables.
  */
-mongo conn[1];
+mongo mongo_conn[1];
 
 /**
  * Test
@@ -142,10 +143,30 @@ ngx_http_mongo_handler(ngx_http_request_t *r)
         return rc;
     }
 
-
-
     /* TODO Magic here */
 
+    bson bs[1];
+    bson_init( bs );
+    
+    char* buffer = (char*)malloc(r->request_line.len);
+    memset(buffer, 0x00, r->request_line.len);
+    strncpy(buffer, (char*)r->request_line.data, r->request_line.len);
+
+    bson_append_string( bs, "request_line", buffer);
+
+    free(buffer);
+
+    bson_append_int( bs, "request_line_len", r->request_line.len);
+
+    bson_append_string( bs, "unparsed_uri", (char*)r->unparsed_uri.data);
+
+    bson_append_string( bs, "method_name", (char*)r->method_name.data);
+    bson_append_string( bs, "http_protocol", (char*)r->http_protocol.data);
+
+    bson_finish( bs );
+
+    mongo_insert( mongo_conn, "test.nginx", bs, 0 );
+    bson_destroy( bs );
 
  
     /* send the buffer chain of your response */
@@ -170,7 +191,13 @@ ngx_http_mongo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  */
 static ngx_int_t 
 nginx_http_mongo_init_worker(ngx_cycle_t* cycle) {
-    mongo_client( conn, "127.0.0.1", 27017 );
+    // TODO: get from config.
+    int status = mongo_client( mongo_conn, "127.0.0.1", 27017 );
+
+    if( status != MONGO_OK ) {
+        return NGX_ERROR;
+    }
+
     return NGX_OK;
 }
 
@@ -179,5 +206,5 @@ nginx_http_mongo_init_worker(ngx_cycle_t* cycle) {
  */
 static void 
 nginx_http_mongo_exit_worker(ngx_cycle_t* cycle) {
-    
+    mongo_destroy( mongo_conn );
 }

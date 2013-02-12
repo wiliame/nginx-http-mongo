@@ -3,3 +3,5 @@ make
 make install
 
 ln -s /usr/local/lib/libmongoc.so.0.7 /lib/x86_64-linux-gnu/libmongoc.so.0.7
+
+@See: https://github.com/bpaquet/ngx_http_enhanced_memcached_module
