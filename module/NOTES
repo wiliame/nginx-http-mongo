@@ -1,0 +1,5 @@
+cd mongo-c-driver
+make
+make install
+
+ln -s /usr/local/lib/libmongoc.so.0.7 /lib/x86_64-linux-gnu/libmongoc.so.0.7
