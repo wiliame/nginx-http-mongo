@@ -3,29 +3,55 @@
  * Copyright (C) Igor Sysoev
  * Copyright (C) Wiliam A. Rodrigo
  */
-
+ 
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
- 
- static char *ngx_http_mongo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
- 
+
+#include <signal.h>
+#include <stdio.h>
+
+#include "mongo-c-driver/src/mongo.h"
+
+/**
+ * Declarations 
+ */
+static char *ngx_http_mongo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static ngx_int_t nginx_http_mongo_init_worker(ngx_cycle_t* cycle);
+static void nginx_http_mongo_exit_worker(ngx_cycle_t* cycle);
+
+/**
+ * Variables.
+ */
+mongo conn[1];
+
+/**
+ * Test
+ */
+static u_char 
+ngx_test_string[] = "Output Testttttttttttttttttt";
+
+/**
+ * Commands
+ */
 static ngx_command_t ngx_http_mongo_commands[] = {
-    { 
-        ngx_string("config-test"),
+    {  
+        ngx_string("test"),
         NGX_HTTP_LOC_CONF|NGX_CONF_NOARGS,
         ngx_http_mongo,
         0,
-        0,
+        0, 
         NULL 
     },
-    ngx_null_command
+    ngx_null_command 
 };
  
-static u_char ngx_test_string[] = "Output Test";
- 
-static ngx_http_module_t ngx_http_mongo_module_ctx = {
-    NULL,                          /* preconfiguration */
+ /**
+ * Hook
+ */
+static ngx_http_module_t  
+ngx_http_mongo_module_ctx = {
+    NULL,                          /* preconfiguration */ 
     NULL,                          /* postconfiguration */
  
     NULL,                          /* create main configuration */
@@ -45,14 +71,17 @@ ngx_module_t ngx_http_mongo_module = {
     NGX_HTTP_MODULE,               /* module type */
     NULL,                          /* init master */
     NULL,                          /* init module */
-    NULL,                          /* init process */
+    nginx_http_mongo_init_worker,  /* init process */
     NULL,                          /* init thread */
     NULL,                          /* exit thread */
-    NULL,                          /* exit process */
+    nginx_http_mongo_exit_worker,  /* exit process */
     NULL,                          /* exit master */
     NGX_MODULE_V1_PADDING
 };
  
+/**
+ * Handler
+ */
 static ngx_int_t
 ngx_http_mongo_handler(ngx_http_request_t *r)
 {
@@ -66,11 +95,11 @@ ngx_http_mongo_handler(ngx_http_request_t *r)
     }
  
     /* discard request body, since we don't need it here */
-    /*rc = ngx_http_discard_request_body(r);
+    rc = ngx_http_discard_request_body(r);
  
     if (rc != NGX_OK) {
         return rc;
-    }*/
+    }
  
     /* set the 'Content-type' header */
     r->headers_out.content_type_len = strlen("text/html");
@@ -112,6 +141,12 @@ ngx_http_mongo_handler(ngx_http_request_t *r)
     if (rc == NGX_ERROR || rc > NGX_OK || r->header_only) {
         return rc;
     }
+
+
+
+    /* TODO Magic here */
+
+
  
     /* send the buffer chain of your response */
     return ngx_http_output_filter(r, &out);
@@ -127,4 +162,22 @@ ngx_http_mongo(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     clcf->handler = ngx_http_mongo_handler;
     
     return NGX_CONF_OK;
+}
+
+
+/**
+ * Init MongoDb connection here.
+ */
+static ngx_int_t 
+nginx_http_mongo_init_worker(ngx_cycle_t* cycle) {
+    mongo_client( conn, "127.0.0.1", 27017 );
+    return NGX_OK;
+}
+
+/**
+ * Close MongoDb connection here.
+ */
+static void 
+nginx_http_mongo_exit_worker(ngx_cycle_t* cycle) {
+    
 }
